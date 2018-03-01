@@ -6901,7 +6901,7 @@ if test "${ac_cv_lib_m_sin+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lm  $LIBS"
+LIBS="-lm -L/usr/local/lib/ -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_imgcodecs $LIBS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -6961,7 +6961,7 @@ if test $ac_cv_lib_m_sin = yes; then
 #define HAVE_LIBM 1
 _ACEOF
 
-  LIBS="-lm $LIBS"
+  LIBS="-lm -L/usr/local/lib/ -lopencv_core $LIBS"
 
 else
   { { echo "$as_me:$LINENO: error: Can't find libm. Please check config.log and if you can't solve the problem send the file to torcs-users@lists.sourceforge.net with the subject \"torcs compilation problem\"" >&5
@@ -7805,7 +7805,7 @@ if test "${ac_cv_lib_alut_alutLoadWAVFile+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lalut  $LIBS"
+LIBS="-lalut -L/usr/local/lib/ -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_imgcodecs  $LIBS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -7861,7 +7861,7 @@ fi
 { echo "$as_me:$LINENO: result: $ac_cv_lib_alut_alutLoadWAVFile" >&5
 echo "${ECHO_T}$ac_cv_lib_alut_alutLoadWAVFile" >&6; }
 if test $ac_cv_lib_alut_alutLoadWAVFile = yes; then
-  LDFLAGS="$LDFLAGS -lalut"
+  LDFLAGS="$LDFLAGS -lalut -L/usr/local/lib/ -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_imgcodecs "
 else
   LDFLAGS="$LDFLAGS"
 fi

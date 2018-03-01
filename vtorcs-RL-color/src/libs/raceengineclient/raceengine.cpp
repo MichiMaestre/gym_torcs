@@ -31,6 +31,7 @@
 #include <racescreens.h>
 #include <robottools.h>
 
+#include "screen_resolution.h"
 #include "racemain.h"
 #include "racegl.h"
 #include "raceinit.h"
@@ -49,12 +50,14 @@ int	RESTART = 0;
 
 // GIUSE - debug - size of the image to be sent through udp
 // Make it zero to deactivate
-int GIUSEIMGSIZE = 64;
+const int GIUSEIMGWIDTH = SCREEN_WIDTH;
+const int GIUSEIMGHEIGHT = SCREEN_HEIGHT;
+const int GIUSEIMGBYTESIZE = 3 * GIUSEIMGWIDTH * GIUSEIMGHEIGHT;
 
 static void ReRaceRules(tCarElt *car);
 
 // GIUSE - VISION HERE!
-static unsigned char* tmpimg;
+//static unsigned char* tmpimg;
 
 /* Compute Pit stop time */
 static void
@@ -127,8 +130,8 @@ ReRaceBigMsgSet(char *msg, double life)
 
 
 // GIUSE - TODO: quick hack, find them a place!
-static unsigned char* tmpRGBimg = (unsigned char*)malloc( 3 * GIUSEIMGSIZE * GIUSEIMGSIZE * sizeof(unsigned char) );
-static double* RGBscales = (double*)malloc( 3 * sizeof(double) );
+//static unsigned char* tmpRGBimg = (unsigned char*)malloc( GIUSEIMGBYTESIZE * sizeof(unsigned char) );
+//static double* RGBscales = (double*)malloc( 4 * sizeof(double) );
 
 
 // GIUSE - VISION HERE!!!
@@ -155,11 +158,9 @@ visionUpdate()
       (ReInfo->vision->sw - ReInfo->vision->vw) / 2,
       (ReInfo->vision->sh - ReInfo->vision->vh) / 2,
       ReInfo->vision->vw,  ReInfo->vision->vh,
-//      100,100,100,100,
-//      GL_LUMINANCE, GL_UNSIGNED_BYTE,
-      GL_RGB, GL_UNSIGNED_BYTE,
-      (GLvoid*)tmpRGBimg
-//      (GLvoid*)ReInfo->vision->img
+      GL_BGR, GL_UNSIGNED_BYTE,
+//      (GLvoid*)tmpRGBimg
+      (GLvoid*)ReInfo->vision->img
     );
 
 
@@ -199,11 +200,10 @@ visionUpdate()
     }
 		*/
 
-		double avg,r,g,b,min,max,s,delta;
-		for (int pixel=0; pixel < 3*GIUSEIMGSIZE*GIUSEIMGSIZE; pixel++)
-		{
+		//double avg,r,g,b,min,max,s,delta;
+		/*for (int pixel=0; pixel < GIUSEIMGBYTESIZE; pixel++) {
 				ReInfo->vision->img[pixel] = (unsigned char) (tmpRGBimg[pixel]);
-		}
+		}*/
 
     // must(?) restore scales to default values
 //    glPixelTransferf(GL_RED_SCALE, 1);
@@ -772,17 +772,19 @@ ReStart(void)
       GfScrGetSize(&ReInfo->vision->sw, &ReInfo->vision->sh, &ReInfo->vision->vw, &ReInfo->vision->vh);
 
       // GIUSE - debug - fixed image size to try the speed of udp
-      if( GIUSEIMGSIZE > 0 )
-        ReInfo->vision->sw = ReInfo->vision->sh = ReInfo->vision->vw = ReInfo->vision->vh = GIUSEIMGSIZE;
+      if( GIUSEIMGBYTESIZE > 0 ) {
+        ReInfo->vision->sw = ReInfo->vision->vw = GIUSEIMGWIDTH;
+        ReInfo->vision->sh = ReInfo->vision->vh = GIUSEIMGHEIGHT;
+      }
 
-      ReInfo->vision->imgsize = 3*ReInfo->vision->vw * ReInfo->vision->vh; // for RGB
+      ReInfo->vision->imgsize = GIUSEIMGBYTESIZE; // for RGB
       ReInfo->vision->img = (unsigned char*)malloc(ReInfo->vision->imgsize * sizeof(unsigned char));
       if (ReInfo->vision->img == NULL)  exit(-1); // malloc fail
 
       // GIUSE - let's avoid zero-images if sent before grabbing the next frame
       memset(ReInfo->vision->img, 1, ReInfo->vision->imgsize * sizeof(unsigned char));
-      memset(tmpRGBimg, 1, 3 * GIUSEIMGSIZE * GIUSEIMGSIZE * sizeof(unsigned char));
-      memset(RGBscales, 1, 3 * sizeof(double));
+      //memset(tmpRGBimg, 1, GIUSEIMGBYTESIZE * sizeof(unsigned char));
+      //memset(RGBscales, 1, 3 * sizeof(double));
 
       printf( "sw %d - sh %d - vw %d - vh %d - imgsize %d\n", ReInfo->vision->sw, ReInfo->vision->sh, ReInfo->vision->vw, ReInfo->vision->vh, ReInfo->vision->imgsize);
 
@@ -796,7 +798,7 @@ ReStop(void)
     ReInfo->_reRunning = 0;
     if( getVision() ){
       free(ReInfo->vision->img);
-      free(tmpimg);
+      //free(tmpimg);
     }
 }
 

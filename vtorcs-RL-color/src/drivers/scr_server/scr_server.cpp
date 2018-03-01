@@ -25,7 +25,9 @@
 #include <math.h>
 #include <iostream>
 #include <sstream>
+#include <vector>
 #include <ctime>
+#include <opencv2/opencv.hpp>
 
 #include <tgf.h>
 #include <track.h>
@@ -38,7 +40,7 @@
 #include "SimpleParser.h"
 #include "CarControl.h"
 #include "ObstacleSensors.h"
-
+#include "zlib.h"
 
 #ifdef _WIN32
 typedef sockaddr_in tSockAddrIn;
@@ -67,6 +69,7 @@ typedef struct sockaddr_in tSockAddrIn;
 #define UDP_DEFAULT_TIMEOUT 100000
 //#define UDP_DEFAULT_TIMEOUT 100000
 // GIUSE - size has to be increased to accomodate larger images
+static const uInt MAX_STATE_MESSAGE_SIZE = 65507;
 static int UDP_MSGLEN = 64*64+1000;
 
 //#define UDP_MSGLEN 650000
@@ -136,7 +139,15 @@ static float trackSensAngle[NBBOTS][19];
 
 static char* botname[NBBOTS] = {"scr_server 1", "scr_server 2", "scr_server 3", "scr_server 4", "scr_server 5", "scr_server 6", "scr_server 7", "scr_server 8", "scr_server 9", "scr_server 10"};
 
+static const int ENCODING_PARAMETERS_[] = {CV_IMWRITE_JPEG_QUALITY, 80};
+static const std::vector<int> ENCODING_PARAMETERS(ENCODING_PARAMETERS_, ENCODING_PARAMETERS_ + 2);
+
 static unsigned long total_tics[NBBOTS];
+
+namespace cv
+{
+    using std::vector;
+}
 
 /*
  * Module entry point
@@ -203,7 +214,6 @@ initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSitu
 static void
 newrace(int index, tCarElt* car, tSituation *s)
 {
-
     total_tics[index]=0;
 
     /***********************************************************************************
@@ -244,6 +254,7 @@ newrace(int index, tCarElt* car, tSituation *s)
     serverAddress[index].sin_family = AF_INET;
     serverAddress[index].sin_addr.s_addr = htonl(INADDR_ANY);
     serverAddress[index].sin_port = htons(getUDPListenPort()+index);
+
 
     if (bind(listenSocket[index],
              (struct sockaddr *) &serverAddress[index],
@@ -518,11 +529,26 @@ drive(int index, tCarElt* car, tSituation *s)
     stateString += SimpleParser::stringify("focus", focusSensorOut, 5);//ML
 
     //GIUSE - VISION HERE!
-//    printf("size: %d\n",car->vision->imgsize);
+
 
     if( getVision() ){
-//      std::cout << car->vision->imgsize << std::endl;
-      stateString += SimpleParser::stringify("img", car->vision->img, car->vision->imgsize);
+        // Image encoding to jpeg:
+        {
+            // converts buffer to cv::Mat, expects BGR
+//            std::cout << car->vision->imgsize << std::endl;
+            cv::Mat image = cv::Mat(car->vision->vh, car->vision->vw, CV_8UC3, car->vision->img).clone();
+
+            cv::vector<uchar> encoded_image;
+            // encode image into jpeg
+            if (cv::imencode(".jpg", image, encoded_image, ENCODING_PARAMETERS)) {
+
+                stateString += SimpleParser::stringify("img", &encoded_image[0], encoded_image.size());
+            } else {
+                std::cerr << "Can't encode image to jpeg" << std::endl;
+            }
+        }
+
+
     }
 
 //    for(int i=0; i < car->vision->imgsize; i++){
@@ -538,7 +564,6 @@ if (RESTARTING[index]==0)
 {
 #ifdef __UDP_SERVER_VERBOSE__
 
-    std::cout << "Sending: " << stateString.c_str() << std::endl;
     std::cout << "Sending: " << stateString.c_str() << std::endl;
 
 #endif
@@ -566,10 +591,28 @@ if (RESTARTING[index]==0)
 
     // Sending the car state to the client
 //    if (sendto(listenSocket[index], line, strlen(line) + 1, 0,
-    if (sendto(listenSocket[index], stateString.c_str(), stateString.length() + 1, 0,
+    std::vector<char> deflatedBuffer(MAX_STATE_MESSAGE_SIZE);
+
+    z_stream defstream;
+    defstream.zalloc = Z_NULL;
+    defstream.zfree = Z_NULL;
+    defstream.opaque = Z_NULL;
+    defstream.avail_in = (uInt)stateString.length(); // size of input
+    //std::cout << "To deflate: " << defstream.avail_in << std::endl;
+    defstream.next_in = (Bytef*)stateString.c_str(); // input char array
+    defstream.avail_out = MAX_STATE_MESSAGE_SIZE; // size of output
+    defstream.next_out = reinterpret_cast<Bytef*>(&deflatedBuffer[0]); // output char array
+
+    deflateInit(&defstream, Z_BEST_COMPRESSION);
+    if (deflate(&defstream, Z_FINISH) == Z_OK)
+        std::cerr << "Error: cannot deflate state: size = " << stateString.length() << std::endl;
+    
+    deflateEnd(&defstream);
+     
+    if (sendto(listenSocket[index], &deflatedBuffer[0], defstream.total_out, 0,
                (struct sockaddr *) &clientAddress[index],
                sizeof(clientAddress[index])) < 0)
-        std::cerr << "Error: cannot send car state";
+        std::cerr << "Error: cannot send car state: size = " << defstream.total_out << std::endl;
 
 
     // Set timeout for client answer

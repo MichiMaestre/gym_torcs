@@ -8,7 +8,10 @@ import copy
 import collections as col
 import os
 import time
+import cv2
 
+SCREEN_WIDTH = 256
+SCREEN_HEIGHT = 192
 
 class TorcsEnv:
     terminal_judge_start = 500  # Speed limit is applied after this step
@@ -223,21 +226,25 @@ class TorcsEnv:
 
         return torcs_action
 
+    def obs_vision_to_image_rgb_proto(self, obs_image):
+        image_jpeg = np.asarray(obs_image).astype(np.uint8)
+        image = cv2.imdecode(image_jpeg, cv2.IMREAD_COLOR)
+        #cv2.imshow('Image', image)
+        #cv2.waitKey()
+        return image.reshape((SCREEN_HEIGHT, SCREEN_WIDTH, 3))[::-1, :, :]
 
     def obs_vision_to_image_rgb(self, obs_image_vec):
         image_vec =  obs_image_vec
         rgb = []
-        temp = []
-        # convert size 64x64x3 = 12288 to 64x64=4096 2-D list 
-        # with rgb values grouped together.
+        # group rgb values together.
         # Format similar to the observation in openai gym
-        for i in range(0,12286,3):
-            temp.append(image_vec[i])
-            temp.append(image_vec[i+1])
-            temp.append(image_vec[i+2])
+
+        #print "Total image bytes: %d" % len(image_vec)
+        for i in range(0, SCREEN_WIDTH*SCREEN_HEIGHT):
+            temp = tuple(image_vec[3*i:3*i+3])
             rgb.append(temp)
-            temp = []
-        return np.array(rgb, dtype=np.uint8)
+       
+        return np.array(rgb, dtype=np.uint8).reshape((SCREEN_HEIGHT, SCREEN_WIDTH, 3))[::-1,:,:]
 
     def make_observaton(self, raw_obs):
         if self.vision is False:
@@ -267,7 +274,7 @@ class TorcsEnv:
             Observation = col.namedtuple('Observaion', names)
 
             # Get RGB from observation
-            image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[8]])
+            image_rgb = self.obs_vision_to_image_rgb_proto(raw_obs[names[8]])
 
             return Observation(focus=np.array(raw_obs['focus'], dtype=np.float32)/200.,
                                speedX=np.array(raw_obs['speedX'], dtype=np.float32)/self.default_speed,

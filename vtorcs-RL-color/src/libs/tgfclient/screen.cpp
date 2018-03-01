@@ -40,6 +40,7 @@
 #include "gui.h"
 #include "fg_gm.h"
 #include "glfeatures.h"
+#include "screen_resolution.h"
 
 //#ifndef WIN32
 //#define USE_RANDR_EXT
@@ -72,7 +73,7 @@ static int usedFG = 0;
 static char	**Res = NULL;
 static int nbRes = 0;
 #else // USE_RANDR_EXT
-static char	*Res[] = {"64x64", "640x480", "800x600", "1024x768", "1152x768", "1152x864", "1200x854", "1200x960", "1280x1024", "1400x900", "1600x1200", "1680x1050", "1920x1200", "320x200","256x128"};
+static char	*Res[] = {SCREEN_RESOLUTION, "640x480", "800x600", "1024x768", "1152x768", "1152x864", "1200x854", "1200x960", "1280x1024", "1400x900", "1600x1200", "1680x1050", "1920x1200", "320x200","256x128"};
 static const int nbRes = sizeof(Res) / sizeof(Res[0]);
 #endif // USE_RANDR_EXT
 
@@ -128,9 +129,9 @@ gfScreenInit(void)
 			XRRScreenSize *sizes = XRRConfigSizes(screenconfig, &nsize);
 
 			if (nsize > 0) {
-				// Check if 64x64, 320x200, 640x480, 800x600 are available, construct a mode wish list.
-				int check_resx[] = {64, 320, 640, 800};
-				int check_resy[] = {64, 240, 480, 600};
+				// Check if SCREEN_RESOLUTION, 320x200, 640x480, 800x600 are available, construct a mode wish list.
+				int check_resx[] = {SCREEN_WIDTH, 320, 640, 800};
+				int check_resy[] = {SCREEN_HEIGHT, 240, 480, 600};
 				bool mode_in_list[] = {false, false, false};
 				int add_modes = sizeof(check_resx)/sizeof(check_resx[0]);
 
@@ -209,7 +210,7 @@ gfScreenInit(void)
 		GfOut("Failed to initialize resolutions for display '%s'", XDisplayName(displayname));
 		nbRes = 9;
 		Res = (char **) malloc(sizeof(char *)*nbRes);
-		Res[0] = strdup("640x480");
+		Res[0] = strdup(SCREEN_RESOLUTION);// added
 		Res[1] = strdup("800x600");
 		Res[2] = strdup("1024x768");
 		Res[3] = strdup("1152x864");
@@ -218,7 +219,7 @@ gfScreenInit(void)
 		Res[6] = strdup("1600x1200");
 		Res[7] = strdup("320x200");
 		Res[8] = strdup("256x128");
-		Res[9] = strdup("64x64");// added
+		Res[9] = strdup("640x480");
 	}
 #endif // USE_RANDR_EXT
 }
@@ -661,8 +662,8 @@ initFromConf(void)
 	int x, y, bpp;
 	int i;
 
-	x = (int)GfParmGetNum(paramHdle, GFSCR_SECT_PROP, GFSCR_ATT_X, NULL, 640);
-	y = (int)GfParmGetNum(paramHdle, GFSCR_SECT_PROP, GFSCR_ATT_Y, NULL, 480);
+	x = (int)GfParmGetNum(paramHdle, GFSCR_SECT_PROP, GFSCR_ATT_X, NULL, SCREEN_WIDTH);
+	y = (int)GfParmGetNum(paramHdle, GFSCR_SECT_PROP, GFSCR_ATT_Y, NULL, SCREEN_HEIGHT);
 
 	sprintf(buf, "%dx%d", x, y);
 	for (i = 0; i < nbRes; i++) {

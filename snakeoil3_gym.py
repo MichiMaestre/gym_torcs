@@ -58,6 +58,7 @@ import sys
 import getopt
 import os
 import time
+import zlib
 PI= 3.14159265359
 
 data_size = 2**17
@@ -234,14 +235,28 @@ class Client():
         '''Server's input is stored in a ServerState object'''
         if not self.so: return
         sockdata= str()
-
+        n_try = 0
         while True:
             try:
                 # Receive server data
                 sockdata,addr= self.so.recvfrom(data_size)
+                try:
+                    sockdata = zlib.decompress(sockdata)
+                except zlib.error as e:
+                    print (e)
+                    continue
+
+                #print(sockdata)
                 sockdata = sockdata.decode('utf-8')
+
             except socket.error as emsg:
-                print('.', end=' ')
+                print('.')
+
+            if n_try >= 10:
+                n_try = 0
+                print("Error count exeeded. Restarted the race on %d." % self.port)
+                self.shutdown()
+                return False
                 #print "Waiting for data on %d.............." % self.port
             if '***identified***' in sockdata:
                 print("Client connected on %d.............." % self.port)
